@@ -1,4 +1,7 @@
 # Tagify - 图片标签管理系统
+基于deepdanbooru批量给图片添加标签,通过标签分类并搜索图片的软件,拥有简单实用的图像化界面
+![2ad942e0-7207-4ca6-b976-e4d54f233e7b](https://github.com/user-attachments/assets/00c2d9b2-c31d-498e-a7c5-c283f7609b4f)
+
 
 ## 运行提示
 - 运行前请在当前目录创建名为"input_image"的文件夹,以及创建名为"gallery"的文件夹
