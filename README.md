@@ -3,7 +3,7 @@
 ## 运行提示
 - 运行前请在当前目录创建名为"input_image"的文件夹,以及创建名为"gallery"的文件夹
 - 运行前请前往https://github.com/KichangKim/DeepDanbooru/releases/tag/v3-20211112-sgd-e28
-- 下载对应model-resnet_custom_v3.h5m模型以及标签
+- 下载对应model-resnet_custom_v3.h5模型以及标签放入当前目录下
 - 并配置MODEL_PATH = 'model-resnet_custom_v3.h5'
 - TAGS_FILE = 'tags.txt'
 
