@@ -2,6 +2,7 @@ import tkinter as tk
 from io import BytesIO
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageFile, ImageDraw
 import sqlite3
 import os
 import shutil
@@ -21,7 +22,9 @@ THUMB_SIZE = (150, 150)
 MAIN_COLOR = "#f5f5f5"
 ACCENT_COLOR = "#c8ccd0"
 DETAIL_COLOR = "#fafafa"
-test_color="#ce1221"
+TEST_COLOR="#ce1221"
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # 允许加载截断的图片
+
 
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
@@ -30,56 +33,6 @@ model = tf.keras.models.load_model(MODEL_PATH)
 with open(TAGS_FILE, 'r', encoding='utf-8') as f:
     tags = [line.strip() for line in f.readlines()]
 
-
-class DatabaseManager:
-    """数据库操作"""
-    def __init__(self, db_file):
-        self.db_file = db_file
-        self._init_db()
-
-    def _init_db(self):
-        """初始化数据库表结构"""
-        with sqlite3.connect(self.db_file) as conn:
-            conn.execute('''CREATE TABLE IF NOT EXISTS tags (
-                image_name TEXT, tag TEXT, confidence REAL,
-                UNIQUE(image_name, tag))''')
-            conn.execute('''CREATE TABLE IF NOT EXISTS image_metadata (
-                image_name TEXT PRIMARY KEY,
-                file_size INTEGER, process_time TEXT)''')
-
-    def execute_query(self, query, params=()):
-        """执行查询并返回结果"""
-        try:
-            with sqlite3.connect(self.db_file) as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, params)
-                if query.strip().upper().startswith("SELECT"):
-                    return cursor.fetchall()
-                conn.commit()
-                return True
-        except sqlite3.Error as e:
-            print(f"数据库错误: {str(e)}")
-            return False
-
-    def check_tag_exists(self, image_name, tag):
-        """检查标签是否已存在"""
-        return self.execute_query(
-            "SELECT 1 FROM tags WHERE image_name=? AND tag=?",
-            (image_name, tag)
-        )
-
-    def add_custom_tag_db(self, image_name, tag, confidence):
-        """添加自定义标签"""
-        try:
-            # 使用INSERT OR IGNORE避免重复
-            self.execute_query(
-                "INSERT OR IGNORE INTO tags VALUES (?, ?, ?)",
-                (image_name, tag, confidence)
-            )
-            return True
-        except sqlite3.Error as e:
-            print(f"数据库错误: {str(e)}")
-            return False
 
 class ThumbnailButton(tk.Frame):
     """自定义缩略图按钮"""
@@ -199,7 +152,7 @@ class Pagination(tk.Frame):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Tagify v1.0")
+        self.title("Tagify v7.0")
         self.geometry("1400x800")
         self.configure(bg=MAIN_COLOR)
 
@@ -210,9 +163,9 @@ class App(tk.Tk):
         self.current_tag = None
         self.selected_image = None
         self.thumbnail_cache = {}
-        self.db = DatabaseManager(DB_FILE)
 
         self.init_ui()
+        self.init_database()
         self.FAVORITE_TAG = "collect"  # 收藏标签
         self.sort_by = "confidence"  # 排序字段
         self.sort_order = "DESC"     # 排序顺序
@@ -388,8 +341,22 @@ class App(tk.Tk):
         elif event.num == 5 or event.delta < 0:
             self.canvas.yview_scroll(1, "units")
 
+    def init_database(self):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS tags (
+            image_name TEXT,
+            tag TEXT,
+            confidence REAL,
+            UNIQUE(image_name, tag))''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS image_metadata (
+            image_name TEXT PRIMARY KEY,
+            file_size INTEGER,
+            process_time TEXT)''')
+        conn.commit()
+        conn.close()
+
     def search_tags(self):
-        """"通过标签查询"""
         keyword = self.search_var.get().strip()
         if not keyword:
             messagebox.showwarning("提示", "请输入搜索关键词")
@@ -478,55 +445,6 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("错误", f"无法打开图片：{str(e)}")
 
-
-    def show_image_context_menu(self, event, img_path):
-        """显示图片右键菜单"""
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label="复制图片", command=lambda: self.copy_image_to_clipboard(img_path))
-        image_name = os.path.basename(img_path)
-        is_favorited = self.check_favorite_status(image_name)
-        menu.add_command(
-            label="取消收藏" if is_favorited else "收藏图片",
-            command=lambda: self.toggle_favorite(image_name, is_favorited)
-        )
-        menu.add_command(
-            label="添加自定义标签",
-            command=lambda: self.show_add_tag_dialog(image_name)
-        )
-        menu.add_separator()
-        menu.add_command(label="删除图片", command=lambda: self.delete_image(img_path))
-        menu.post(event.x_root, event.y_root)
-
-    def show_thumbnail_context_menu(self, image_name, event):
-        """显示缩略图右键菜单"""
-        img_path = os.path.join(ARCHIVE_FOLDER, image_name)
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label="复制图片", command=lambda: self.copy_image_to_clipboard(img_path))
-        is_favorited = self.check_favorite_status(image_name)
-        menu.add_command(
-            label="取消收藏" if is_favorited else "收藏图片",
-            command=lambda: self.toggle_favorite(image_name, is_favorited)
-        )
-        menu.add_command(
-            label="添加自定义标签",
-            command=lambda: self.show_add_tag_dialog(image_name)
-        )
-        menu.add_separator()
-        menu.add_command(label="删除图片", command=lambda: self.delete_image(img_path))
-        menu.post(event.x_root, event.y_root)
-
-    def on_tag_right_click(self, event):
-        """标签树右键点击事件处理"""
-        item = self.tag_tree.identify_row(event.y)
-        if item:
-            self.tag_tree.selection_set(item)
-            tag = self.tag_tree.item(item, "values")[0]
-
-            # 创建上下文菜单
-            menu = tk.Menu(self, tearoff=0)
-            menu.add_command(label="复制标签",command=lambda: self.copy_tag_to_clipboard(tag))
-            menu.post(event.x_root, event.y_root)
-
     def check_favorite_status(self, image_name):
         """检查是否已收藏"""
         conn = sqlite3.connect(DB_FILE)
@@ -567,84 +485,46 @@ class App(tk.Tk):
         finally:
             conn.close()
 
-    def show_add_tag_dialog(self, image_name):
-        """显示添加标签对话框"""
-        dialog = tk.Toplevel(self)
-        dialog.title("添加自定义标签")
-        dialog.grab_set()  # 设为模态对话框
 
-        # 居中显示
-        window_width = 300
-        window_height = 150
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x = int((screen_width - window_width) / 2)
-        y = int((screen_height - window_height) / 2)
-        dialog.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # 标签输入
-        tk.Label(dialog, text="标签名称:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
-        tag_entry = ttk.Entry(dialog)
-        tag_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-
-        # 置信度输入
-        tk.Label(dialog, text="置信度 (0-1):").grid(row=1, column=0, padx=5, pady=5, sticky="e")
-        confidence_entry = ttk.Entry(dialog)
-        confidence_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-
-        # 输入验证函数
-        def validate_input():
-            tag = tag_entry.get().strip()
-            conf = confidence_entry.get().strip()
-
-            if not tag:
-                messagebox.showerror("错误", "标签名称不能为空")
-                return False
-
-            try:
-                conf = float(conf)
-                if not (0 <= conf <= 1):
-                    raise ValueError
-            except ValueError:
-                messagebox.showerror("错误", "请输入0到1之间的有效数字")
-                return False
-
-            return (tag, conf)
-
-        # 确认按钮
-        def on_confirm():
-            if validated := validate_input():
-                tag, conf = validated
-                self.add_custom_tag(image_name, tag, conf, dialog)
-
-        ttk.Button(dialog, text="确认添加", command=on_confirm).grid(
-            row=2, column=0, columnspan=2, pady=10
+    def show_image_context_menu(self, event, img_path):
+        """显示图片右键菜单"""
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label="复制图片", command=lambda: self.copy_image_to_clipboard(img_path))
+        image_name = os.path.basename(img_path)
+        is_favorited = self.check_favorite_status(image_name)
+        menu.add_command(
+            label="取消收藏" if is_favorited else "收藏图片",
+            command=lambda: self.toggle_favorite(image_name, is_favorited)
         )
+        menu.add_separator()
+        menu.add_command(label="删除图片", command=lambda: self.delete_image(img_path))
+        menu.post(event.x_root, event.y_root)
 
-    def add_custom_tag(self, image_name, tag, confidence, dialog):
-        """执行标签添加操作"""
-        try:
-            # 检查标签是否已存在
-            if self.db.check_tag_exists(image_name, tag):
-                messagebox.showinfo("提示", f"该图片已存在 [{tag}] 标签")
-                dialog.destroy()
-                return
+    def show_thumbnail_context_menu(self, image_name, event):
+        """显示缩略图右键菜单"""
+        img_path = os.path.join(ARCHIVE_FOLDER, image_name)
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label="复制图片", command=lambda: self.copy_image_to_clipboard(img_path))
+        is_favorited = self.check_favorite_status(image_name)
+        menu.add_command(
+            label="取消收藏" if is_favorited else "收藏图片",
+            command=lambda: self.toggle_favorite(image_name, is_favorited)
+        )
+        menu.add_separator()
+        menu.add_command(label="删除图片", command=lambda: self.delete_image(img_path))
+        menu.post(event.x_root, event.y_root)
 
-            # 添加新标签
-            if self.db.add_custom_tag_db(image_name, tag, confidence):
-                messagebox.showinfo("成功", "标签添加成功")
+    def on_tag_right_click(self, event):
+        """标签树右键点击事件处理"""
+        item = self.tag_tree.identify_row(event.y)
+        if item:
+            self.tag_tree.selection_set(item)
+            tag = self.tag_tree.item(item, "values")[0]
 
-                # 刷新界面显示
-                if self.selected_image == image_name:
-                    self.show_image_info(image_name)
-                self.load_images()  # 刷新缩略图列表
-            else:
-                messagebox.showerror("错误", "标签添加失败")
-
-            dialog.destroy()
-        except Exception as e:
-            messagebox.showerror("错误", f"发生未知错误: {str(e)}")
-            dialog.destroy()
+            # 创建上下文菜单
+            menu = tk.Menu(self, tearoff=0)
+            menu.add_command(label="复制标签",command=lambda: self.copy_tag_to_clipboard(tag))
+            menu.post(event.x_root, event.y_root)
 
     def copy_tag_to_clipboard(self, tag):
         """复制标签到剪贴板"""
@@ -719,7 +599,7 @@ class App(tk.Tk):
         self.load_images()
 
     def load_images(self):
-        """加载当前页图片"""
+        """加载当前页图片（修复排序和分页问题）"""
         for widget in self.grid_frame.winfo_children():
             widget.destroy()
 
@@ -760,30 +640,42 @@ class App(tk.Tk):
 
             # 生成缩略图网格
             row, col = 0, 0
+            valid_count = 0  # 记录有效图片数量
+
             for idx, (image_name,) in enumerate(cursor.fetchall()):
                 thumbnail = self.get_thumbnail(image_name)
-                if not thumbnail:
-                    continue
 
-                btn = ThumbnailButton(
-                    self.grid_frame,
-                    thumbnail,
-                    image_name,
-                    click_command=lambda n=image_name: self.show_image_info(n),
-                    dblclick_command=lambda n=image_name: self.show_original_image(n),
-                    context_menu_command=self.show_thumbnail_context_menu
-                )
-                btn.grid(row=row, column=col, padx=5, pady=5)
+                # 只添加有效缩略图
+                if thumbnail:
+                    btn = ThumbnailButton(
+                        self.grid_frame,
+                        thumbnail,
+                        image_name,
+                        click_command=lambda n=image_name: self.show_image_info(n),
+                        dblclick_command=lambda n=image_name: self.show_original_image(n),
+                        context_menu_command=self.show_thumbnail_context_menu
+                    )
+                    btn.grid(row=row, column=col, padx=5, pady=5)
 
-                col += 1
-                if col >= 4:
-                    col = 0
-                    row += 1
+                    col += 1
+                    valid_count += 1  # 增加有效计数
+
+                    if col >= 4:
+                        col = 0
+                        row += 1
+
+            # 如果没有有效图片，显示提示
+            if valid_count == 0:
+                tk.Label(self.grid_frame,
+                         text="没有可显示的图片或所有图片已损坏",
+                         bg=MAIN_COLOR).grid(row=0, column=0, columnspan=4)
 
             self.update_pagination()
 
         finally:
             conn.close()
+
+
 
     def update_pagination(self):
         for widget in self.pagination_frame.winfo_children():
@@ -804,17 +696,48 @@ class App(tk.Tk):
 
         image_path = os.path.join(ARCHIVE_FOLDER, image_name)
         try:
+            # 先验证图片完整性
+            if not self._validate_image(image_path):
+                error_thumb = self._get_error_thumbnail()
+                self.thumbnail_cache[image_name] = error_thumb
+                return error_thumb
+
             img = Image.open(image_path)
             img.thumbnail(THUMB_SIZE)
             thumbnail = ImageTk.PhotoImage(img)
             self.thumbnail_cache[image_name] = thumbnail
             return thumbnail
         except Exception as e:
-            print(f"缩略图错误: {str(e)}")
-            return None
+            print(f"缩略图生成错误: {image_name} - {str(e)}")
+            error_thumb = self._get_error_thumbnail()
+            self.thumbnail_cache[image_name] = error_thumb
+            return error_thumb
+
+    def _validate_image(self, image_path):
+        """验证图片文件是否完整"""
+        try:
+            # 检查文件大小
+            if os.path.getsize(image_path) == 0:
+                return False
+
+            # 尝试读取文件头
+            with Image.open(image_path) as img:
+                img.verify()  # 验证文件完整性
+            return True
+        except Exception as e:
+            print(f"图片验证失败: {image_path} - {str(e)}")
+            return False
+
+    def _get_error_thumbnail(self):
+        """生成错误占位缩略图"""
+        img = Image.new('RGB', THUMB_SIZE, color='red')
+        draw = ImageDraw.Draw(img)
+        draw.text((10, 10), "ERR", fill='white')
+        return ImageTk.PhotoImage(img)
+
+
 
     def show_image_detail(self, image_name):
-        """"显示详细标签"""
         detail_win = tk.Toplevel(self)
         detail_win.title(image_name)
 
@@ -852,7 +775,6 @@ class App(tk.Tk):
         threading.Thread(target=self.process_images, daemon=True).start()
 
     def process_images(self):
-        """"批量处理图片"""
         try:
             valid_ext = ('.png', '.jpg', '.jpeg', '.webp')
             image_files = [f for f in os.listdir(INPUT_FOLDER) if f.lower().endswith(valid_ext)]
@@ -896,7 +818,7 @@ class App(tk.Tk):
 
     def update_progress(self, value, message):
         self.after(0, lambda: self.progress.config(value=value))
-        self.after(0, lambda: self.title(f"Tagify - {message}"))
+        self.after(0, lambda: self.title(f"tagify - {message}"))
 
     def log_error(self, message):
         self.after(0, lambda: messagebox.showerror("处理错误", message))
