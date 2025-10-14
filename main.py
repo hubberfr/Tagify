@@ -22,9 +22,8 @@ THUMB_SIZE = (150, 150)
 MAIN_COLOR = "#f5f5f5"
 ACCENT_COLOR = "#c8ccd0"
 DETAIL_COLOR = "#fafafa"
-TEST_COLOR="#ce1221"
+TEST_COLOR = "#ce1221"
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # 允许加载截断的图片
-
 
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
@@ -37,7 +36,7 @@ with open(TAGS_FILE, 'r', encoding='utf-8') as f:
 class ThumbnailButton(tk.Frame):
     """自定义缩略图按钮"""
 
-    def __init__(self, master, image, name, click_command, dblclick_command,context_menu_command):
+    def __init__(self, master, image, name, click_command, dblclick_command, context_menu_command):
         super().__init__(master, bg=MAIN_COLOR, padx=5, pady=5)
         self.click_command = click_command
         self.dblclick_command = dblclick_command
@@ -49,7 +48,7 @@ class ThumbnailButton(tk.Frame):
         self.img_label.pack()
 
         short_name = name[:18] + "..." if len(name) > 20 else name
-        tk.Label(self, text=short_name, bg=MAIN_COLOR, fg="black",font=('微软雅黑', 8)).pack()
+        tk.Label(self, text=short_name, bg=MAIN_COLOR, fg="black", font=('微软雅黑', 8)).pack()
 
         # 事件绑定
         self.img_label.bind("<Button-1>", self.on_click)
@@ -94,7 +93,8 @@ class Pagination(tk.Frame):
             widget.destroy()
 
         # 添加上一页按钮
-        prev_btn = ttk.Button(self, text="◀", width=3,command=lambda: self.command(max(1, self.current_page - 1)))
+        prev_btn = ttk.Button(self, text="◀", width=3,
+                              command=lambda: self.command(max(1, self.current_page - 1)))
         prev_btn.pack(side=tk.LEFT, padx=2)
 
         # 生成页码范围
@@ -111,7 +111,8 @@ class Pagination(tk.Frame):
                 btn.pack(side=tk.LEFT, padx=2)
 
         # 添加下一页按钮
-        next_btn = ttk.Button(self, text="▶", width=3,command=lambda: self.command(min(self.total_pages, self.current_page + 1)))
+        next_btn = ttk.Button(self, text="▶", width=3,
+                              command=lambda: self.command(min(self.total_pages, self.current_page + 1)))
         next_btn.pack(side=tk.LEFT, padx=2)
 
     def get_page_range(self):
@@ -149,10 +150,11 @@ class Pagination(tk.Frame):
 
         return visible_pages
 
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Tagify v7.0")
+        self.title("Tagify v7.2")  # 更新版本号
         self.geometry("1400x800")
         self.configure(bg=MAIN_COLOR)
 
@@ -163,12 +165,14 @@ class App(tk.Tk):
         self.current_tag = None
         self.selected_image = None
         self.thumbnail_cache = {}
+        self.view_mode = "tag"  # 新增：视图模式，"tag" 或 "gallery"
+        self.columns_per_row = 4  # 默认每行4个缩略图
 
         self.init_ui()
         self.init_database()
         self.FAVORITE_TAG = "collect"  # 收藏标签
-        self.sort_by = "confidence"  # 排序字段
-        self.sort_order = "DESC"     # 排序顺序
+        self.sort_by = "time"  # 默认按时间排序
+        self.sort_order = "DESC"  # 默认倒序
 
         # 样式配置
         self.style = ttk.Style()
@@ -182,30 +186,59 @@ class App(tk.Tk):
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, pady=10)
 
-        self.process_btn = ttk.Button(toolbar, text="开始批量处理", command=self.start_processing)
-        self.process_btn.pack(side=tk.LEFT, padx=10)
+        # 左侧按钮组
+        left_toolbar = ttk.Frame(toolbar)
+        left_toolbar.pack(side=tk.LEFT)
 
+        self.process_btn = ttk.Button(left_toolbar, text="开始批量处理", command=self.start_processing)
+        self.process_btn.pack(side=tk.LEFT, padx=5)
+
+        # 添加显示图库按钮
+        ttk.Button(left_toolbar, text="显示图库",
+                   command=self.show_gallery).pack(side=tk.LEFT, padx=5)
+
+        # 添加检查按钮
+        ttk.Button(left_toolbar, text="检查数据完整性",
+                   command=self.check_data_integrity).pack(side=tk.LEFT, padx=5)
+
+        # 中间进度条（占据剩余空间）
         self.progress = ttk.Progressbar(toolbar, mode='determinate')
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
 
         # 主容器
-        main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        main_paned.pack(fill=tk.BOTH, expand=True)
+        self.main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.main_paned.pack(fill=tk.BOTH, expand=True)
 
         # 左侧面板
-        left_panel = ttk.Frame(main_paned, width=300)
-        self.build_left_panel(left_panel)
-        main_paned.add(left_panel,weight=3)
+        self.left_panel = ttk.Frame(self.main_paned, width=300)
+        self.build_left_panel(self.left_panel)
+        self.main_paned.add(self.left_panel, weight=3)
 
         # 中间面板
-        center_panel = ttk.Frame(main_paned, width=700)
-        self.build_center_panel(center_panel)
-        main_paned.add(center_panel,weight=7)
+        self.center_panel = ttk.Frame(self.main_paned, width=700)
+        self.build_center_panel(self.center_panel)
+        self.main_paned.add(self.center_panel, weight=7)
 
         # 右侧面板
-        right_panel = ttk.Frame(main_paned, width=400)
-        self.build_right_panel(right_panel)
-        main_paned.add(right_panel,weight=4)
+        self.right_panel = ttk.Frame(self.main_paned, width=400)
+        self.build_right_panel(self.right_panel)
+        self.main_paned.add(self.right_panel, weight=4)
+
+        # 绑定面板大小变化事件
+        self.center_panel.bind("<Configure>", self.on_center_panel_resize)
+
+    def on_center_panel_resize(self, event):
+        """中间面板大小变化时重新计算每行缩略图数量"""
+        if event.width > 0:
+            # 计算可容纳的列数（缩略图宽度 + 间距）
+            thumb_width = THUMB_SIZE[0] + 20  # 缩略图宽度 + 左右间距
+            new_columns = max(1, event.width // thumb_width)
+
+            if new_columns != self.columns_per_row:
+                self.columns_per_row = new_columns
+                # 重新加载当前页以应用新的布局
+                if hasattr(self, 'grid_frame'):
+                    self.load_images()
 
     def build_left_panel(self, parent):
         """构建左侧搜索面板"""
@@ -230,13 +263,14 @@ class App(tk.Tk):
     def build_center_panel(self, parent):
         """构建中间图片区域"""
 
-        #排序工具栏
-        sort_frame = ttk.Frame(parent)
-        sort_frame.pack(fill=tk.X, padx=10, pady=10)
+        # 排序工具栏
+        self.sort_frame = ttk.Frame(parent)
+        self.sort_frame.pack(fill=tk.X, padx=10, pady=10)
+
         self.sort_buttons = {
-            'name': ttk.Button(sort_frame, text="名称排序 ▲",command=lambda: self.toggle_sort('name')),
-            'size': ttk.Button(sort_frame, text="大小排序",command=lambda: self.toggle_sort('size')),
-            'time': ttk.Button(sort_frame, text="时间排序",command=lambda: self.toggle_sort('time'))
+            'name': ttk.Button(self.sort_frame, text="名称排序", command=lambda: self.toggle_sort('name')),
+            'size': ttk.Button(self.sort_frame, text="大小排序", command=lambda: self.toggle_sort('size')),
+            'time': ttk.Button(self.sort_frame, text="时间排序 ▲", command=lambda: self.toggle_sort('time'))
         }
 
         self.sort_buttons['name'].pack(side=tk.LEFT, padx=2)
@@ -295,6 +329,7 @@ class App(tk.Tk):
 
     def toggle_sort(self, field):
         """切换排序方式和顺序"""
+        # 更新排序字段和顺序
         if self.sort_by == field:
             # 切换排序顺序
             self.sort_order = "DESC" if self.sort_order == "ASC" else "ASC"
@@ -313,6 +348,18 @@ class App(tk.Tk):
         # 重新加载图片
         self.current_page = 1
         self.load_images()
+
+    def update_sort_buttons_state(self):
+        """更新排序按钮状态"""
+        # 所有模式下都启用所有排序按钮
+        for btn in self.sort_buttons.values():
+            btn.config(state=tk.NORMAL)
+
+        # 更新当前排序按钮的显示
+        for btn in self.sort_buttons.values():
+            btn.config(text=btn.cget('text').replace(' ▲', '').replace(' ▼', ''))
+        arrow = " ▲" if self.sort_order == "ASC" else " ▼"
+        self.sort_buttons[self.sort_by].config(text=self.sort_buttons[self.sort_by].cget('text') + arrow)
 
     def create_info_row(self, parent, label, row):
         frame = ttk.Frame(parent)
@@ -344,15 +391,19 @@ class App(tk.Tk):
     def init_database(self):
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS tags (
-            image_name TEXT,
-            tag TEXT,
-            confidence REAL,
-            UNIQUE(image_name, tag))''')
-        cursor.execute('''CREATE TABLE IF NOT EXISTS image_metadata (
-            image_name TEXT PRIMARY KEY,
-            file_size INTEGER,
-            process_time TEXT)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS tags
+                          (
+                              image_name TEXT,
+                              tag        TEXT,
+                              confidence REAL,
+                              UNIQUE (image_name, tag)
+                          )''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS image_metadata
+                          (
+                              image_name   TEXT PRIMARY KEY,
+                              file_size    INTEGER,
+                              process_time TEXT
+                          )''')
         conn.commit()
         conn.close()
 
@@ -364,11 +415,11 @@ class App(tk.Tk):
 
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute('''SELECT tag, COUNT(*) as count 
-                        FROM tags 
-                        WHERE tag LIKE ? 
-                        GROUP BY tag 
-                        ORDER BY count DESC''', (f'%{keyword}%',))
+        cursor.execute('''SELECT tag, COUNT(*) as count
+                          FROM tags
+                          WHERE tag LIKE ?
+                          GROUP BY tag
+                          ORDER BY count DESC''', (f'%{keyword}%',))
 
         # 修复清除Canvas的方式
         self.tag_canvas.delete("all")
@@ -378,7 +429,7 @@ class App(tk.Tk):
 
         ypos = 10
         for tag, count in cursor.fetchall():
-            btn = ttk.Button(self.tag_canvas, text=f"{tag} ({count})",command=lambda t=tag: self.show_tag(t))
+            btn = ttk.Button(self.tag_canvas, text=f"{tag} ({count})", command=lambda t=tag: self.show_tag(t))
             self.tag_canvas.create_window((10, ypos), window=btn, anchor="nw", width=280)
             ypos += 35
 
@@ -397,19 +448,26 @@ class App(tk.Tk):
         cursor = conn.cursor()
 
         # 获取元数据
-        cursor.execute('''SELECT file_size, process_time 
-                       FROM image_metadata WHERE image_name = ?''', (image_name,))
-        file_size, process_time = cursor.fetchone()
+        cursor.execute('''SELECT file_size, process_time
+                          FROM image_metadata
+                          WHERE image_name = ?''', (image_name,))
+        result = cursor.fetchone()
+        if result:
+            file_size, process_time = result
+        else:
+            file_size, process_time = 0, "未知"
 
         # 更新基本信息
         self.info_labels['name'].config(text=image_name)
         self.info_labels['size'].config(text=f"{round(file_size / 1024)} KB")
-        self.info_labels['time'].config(text=process_time[:19])
+        self.info_labels['time'].config(text=process_time[:19] if process_time != "未知" else "未知")
 
         # 更新标签信息
         self.tag_tree.delete(*self.tag_tree.get_children())
-        cursor.execute('''SELECT tag, confidence FROM tags 
-                        WHERE image_name = ? ORDER BY confidence DESC''', (image_name,))
+        cursor.execute('''SELECT tag, confidence
+                          FROM tags
+                          WHERE image_name = ?
+                          ORDER BY confidence DESC''', (image_name,))
         for tag, conf in cursor.fetchall():
             self.tag_tree.insert('', 'end', values=(tag, f"{conf * 100:.2f}%"))
 
@@ -449,8 +507,10 @@ class App(tk.Tk):
         """检查是否已收藏"""
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute('''SELECT 1 FROM tags 
-                        WHERE image_name=? AND tag=?''',
+        cursor.execute('''SELECT 1
+                          FROM tags
+                          WHERE image_name = ?
+                            AND tag = ?''',
                        (image_name, self.FAVORITE_TAG))
         result = cursor.fetchone()
         conn.close()
@@ -464,8 +524,10 @@ class App(tk.Tk):
 
             if current_status:
                 # 取消收藏
-                cursor.execute('''DELETE FROM tags 
-                               WHERE image_name=? AND tag=?''',
+                cursor.execute('''DELETE
+                                  FROM tags
+                                  WHERE image_name = ?
+                                    AND tag = ?''',
                                (image_name, self.FAVORITE_TAG))
             else:
                 # 添加收藏
@@ -475,7 +537,6 @@ class App(tk.Tk):
 
             conn.commit()
 
-
             # 如果当前正在查看收藏列表则刷新
             if self.current_tag == self.FAVORITE_TAG:
                 self.load_images()
@@ -484,7 +545,6 @@ class App(tk.Tk):
             messagebox.showerror("操作失败", str(e))
         finally:
             conn.close()
-
 
     def show_image_context_menu(self, event, img_path):
         """显示图片右键菜单"""
@@ -523,7 +583,7 @@ class App(tk.Tk):
 
             # 创建上下文菜单
             menu = tk.Menu(self, tearoff=0)
-            menu.add_command(label="复制标签",command=lambda: self.copy_tag_to_clipboard(tag))
+            menu.add_command(label="复制标签", command=lambda: self.copy_tag_to_clipboard(tag))
             menu.post(event.x_root, event.y_root)
 
     def copy_tag_to_clipboard(self, tag):
@@ -590,16 +650,27 @@ class App(tk.Tk):
     def get_canvas_windows(self):
         """获取Canvas上的所有窗口组件"""
         return [self.tag_canvas.item(widget, "window")
-               for widget in self.tag_canvas.find_all()
-               if self.tag_canvas.type(widget) == "window"]
+                for widget in self.tag_canvas.find_all()
+                if self.tag_canvas.type(widget) == "window"]
 
     def show_tag(self, tag):
+        """显示特定标签的图片"""
+        self.view_mode = "tag"
         self.current_tag = tag
         self.current_page = 1
+        self.update_sort_buttons_state()  # 更新排序按钮状态
+        self.load_images()
+
+    def show_gallery(self):
+        """显示整个图库（时间倒序）"""
+        self.view_mode = "gallery"
+        self.current_tag = None
+        self.current_page = 1
+        self.update_sort_buttons_state()  # 更新排序按钮状态
         self.load_images()
 
     def load_images(self):
-        """加载当前页图片（修复排序和分页问题）"""
+        """加载当前页图片"""
         for widget in self.grid_frame.winfo_children():
             widget.destroy()
 
@@ -607,45 +678,67 @@ class App(tk.Tk):
         cursor = conn.cursor()
 
         try:
-            # 构建排序字段映射
-            sort_mapping = {
-                'name': 'm.image_name',
-                'size': 'm.file_size',
-                'time': 'm.process_time',
-                'confidence': 't.confidence'
-            }
+            if self.view_mode == "gallery":
+                # 图库模式：显示所有图片，支持所有排序方式
+                count_query = "SELECT COUNT(*) FROM image_metadata"
 
-            # 先计算总数
-            count_query = '''
-                SELECT COUNT(DISTINCT m.image_name)
-                FROM tags t
-                JOIN image_metadata m ON t.image_name = m.image_name
-                WHERE t.tag = ?
-            '''
-            cursor.execute(count_query, (self.current_tag,))
-            total = cursor.fetchone()[0]
-            self.total_pages = (total + self.page_size - 1) // self.page_size
+                # 构建排序映射
+                sort_mapping = {
+                    'name': 'image_name',
+                    'size': 'file_size',
+                    'time': 'process_time'
+                }
 
-            # 构建分页查询（排序）
-            data_query = f'''
-                SELECT DISTINCT m.image_name 
-                FROM tags t
-                JOIN image_metadata m ON t.image_name = m.image_name
-                WHERE t.tag = ?
-                ORDER BY {sort_mapping[self.sort_by]} {self.sort_order}
-                LIMIT ? OFFSET ?
-            '''
-            offset = (self.current_page - 1) * self.page_size
-            cursor.execute(data_query, (self.current_tag, self.page_size, offset))
+                data_query = f'''
+                    SELECT image_name 
+                    FROM image_metadata 
+                    ORDER BY {sort_mapping[self.sort_by]} {self.sort_order}
+                    LIMIT ? OFFSET ?
+                '''
+                cursor.execute(count_query)
+                total = cursor.fetchone()[0]
+                self.total_pages = (total + self.page_size - 1) // self.page_size
 
-            # 生成缩略图网格
+                offset = (self.current_page - 1) * self.page_size
+                cursor.execute(data_query, (self.page_size, offset))
+
+            else:
+                # 标签模式：原有逻辑
+                sort_mapping = {
+                    'name': 'm.image_name',
+                    'size': 'm.file_size',
+                    'time': 'm.process_time',
+                    'confidence': 't.confidence'
+                }
+
+                count_query = '''
+                              SELECT COUNT(DISTINCT m.image_name)
+                              FROM tags t
+                                       JOIN image_metadata m ON t.image_name = m.image_name
+                              WHERE t.tag = ? \
+                              '''
+                cursor.execute(count_query, (self.current_tag,))
+                total = cursor.fetchone()[0]
+                self.total_pages = (total + self.page_size - 1) // self.page_size
+
+                data_query = f'''
+                    SELECT DISTINCT m.image_name 
+                    FROM tags t
+                    JOIN image_metadata m ON t.image_name = m.image_name
+                    WHERE t.tag = ?
+                    ORDER BY {sort_mapping[self.sort_by]} {self.sort_order}
+                    LIMIT ? OFFSET ?
+                '''
+                offset = (self.current_page - 1) * self.page_size
+                cursor.execute(data_query, (self.current_tag, self.page_size, offset))
+
+            # 生成缩略图网格（保持不变）
             row, col = 0, 0
-            valid_count = 0  # 记录有效图片数量
+            valid_count = 0
 
             for idx, (image_name,) in enumerate(cursor.fetchall()):
                 thumbnail = self.get_thumbnail(image_name)
 
-                # 只添加有效缩略图
                 if thumbnail:
                     btn = ThumbnailButton(
                         self.grid_frame,
@@ -658,24 +751,28 @@ class App(tk.Tk):
                     btn.grid(row=row, column=col, padx=5, pady=5)
 
                     col += 1
-                    valid_count += 1  # 增加有效计数
+                    valid_count += 1
 
-                    if col >= 4:
+                    if col >= self.columns_per_row:
                         col = 0
                         row += 1
 
-            # 如果没有有效图片，显示提示
+            # 空状态提示（保持不变）
             if valid_count == 0:
+                if self.view_mode == "gallery":
+                    message_text = "图库中没有图片"
+                else:
+                    message_text = f"没有找到标签为 '{self.current_tag}' 的图片"
+
                 tk.Label(self.grid_frame,
-                         text="没有可显示的图片或所有图片已损坏",
-                         bg=MAIN_COLOR).grid(row=0, column=0, columnspan=4)
+                         text=message_text,
+                         bg=MAIN_COLOR, font=('微软雅黑', 12)).grid(row=0, column=0, columnspan=self.columns_per_row,
+                                                                    pady=50)
 
             self.update_pagination()
 
         finally:
             conn.close()
-
-
 
     def update_pagination(self):
         for widget in self.pagination_frame.winfo_children():
@@ -735,8 +832,6 @@ class App(tk.Tk):
         draw.text((10, 10), "ERR", fill='white')
         return ImageTk.PhotoImage(img)
 
-
-
     def show_image_detail(self, image_name):
         detail_win = tk.Toplevel(self)
         detail_win.title(image_name)
@@ -749,9 +844,10 @@ class App(tk.Tk):
         # 显示标签详情
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute('''SELECT tag, confidence FROM tags 
-                        WHERE image_name = ? 
-                        ORDER BY confidence DESC''', (image_name,))
+        cursor.execute('''SELECT tag, confidence
+                          FROM tags
+                          WHERE image_name = ?
+                          ORDER BY confidence DESC''', (image_name,))
 
         tree = ttk.Treeview(detail_win, columns=('tag', 'confidence'), show='headings')
         tree.heading('tag', text='标签')
@@ -780,9 +876,25 @@ class App(tk.Tk):
             image_files = [f for f in os.listdir(INPUT_FOLDER) if f.lower().endswith(valid_ext)]
             total = len(image_files)
 
+            renamed_count = 0
+            overwritten_count = 0
+
             for idx, filename in enumerate(image_files, 1):
                 src_path = os.path.join(INPUT_FOLDER, filename)
+
                 try:
+                    # 检查目标文件是否已存在
+                    dest_path = os.path.join(ARCHIVE_FOLDER, filename)
+                    if os.path.exists(dest_path):
+                        # 生成唯一文件名
+                        unique_name = self._get_unique_filename(filename)
+                        dest_path = os.path.join(ARCHIVE_FOLDER, unique_name)
+                        final_filename = unique_name
+                        renamed_count += 1
+                        print(f"重名处理: {filename} -> {unique_name}")
+                    else:
+                        final_filename = filename
+
                     img = Image.open(src_path).convert('RGB')
                     img = img.resize((512, 512))
                     img_array = np.asarray(img).astype(np.float32) / 255.0
@@ -794,27 +906,63 @@ class App(tk.Tk):
 
                     conn = sqlite3.connect(DB_FILE)
                     cursor = conn.cursor()
-                    cursor.execute('''INSERT OR REPLACE INTO image_metadata 
-                                    VALUES (?, ?, ?)''',
-                                   (filename, os.path.getsize(src_path),
+
+                    # 检查数据库是否已存在同名记录
+                    cursor.execute("SELECT 1 FROM image_metadata WHERE image_name = ?", (final_filename,))
+                    if cursor.fetchone():
+                        # 如果数据库已存在，先删除旧记录
+                        cursor.execute("DELETE FROM image_metadata WHERE image_name = ?", (final_filename,))
+                        cursor.execute("DELETE FROM tags WHERE image_name = ?", (final_filename,))
+                        overwritten_count += 1
+
+                    # 插入新记录
+                    cursor.execute('''INSERT INTO image_metadata
+                                      VALUES (?, ?, ?)''',
+                                   (final_filename, os.path.getsize(src_path),
                                     datetime.now().isoformat()))
-                    cursor.executemany('''INSERT OR REPLACE INTO tags 
-                                        VALUES (?, ?, ?)''',
-                                       [(filename, tag, round(conf, 5))
+                    cursor.executemany('''INSERT INTO tags
+                                          VALUES (?, ?, ?)''',
+                                       [(final_filename, tag, round(conf, 5))
                                         for tag, conf in tag_confidences])
                     conn.commit()
                     conn.close()
 
-                    shutil.move(src_path, os.path.join(ARCHIVE_FOLDER, filename))
-                    self.update_progress(idx / total * 100, f"处理中: {filename}")
+                    # 移动文件
+                    shutil.move(src_path, dest_path)
+
+                    status_msg = f"处理中: {filename}"
+                    if final_filename != filename:
+                        status_msg += f" -> {final_filename}"
+
+                    self.update_progress(idx / total * 100, status_msg)
+
                 except Exception as e:
                     self.log_error(f"处理失败: {filename}\n{str(e)}")
 
+            # 显示统计信息
+            stats_msg = f"处理完成! 共 {total} 张图片"
+            if renamed_count > 0:
+                stats_msg += f", {renamed_count} 张因重名被重命名"
+            if overwritten_count > 0:
+                stats_msg += f", {overwritten_count} 张覆盖了旧记录"
+
             self.update_progress(100, "处理完成!")
-            self.after(0, lambda: messagebox.showinfo("完成", "所有图片处理完成"))
+            self.after(0, lambda: messagebox.showinfo("完成", stats_msg))
             self.search_tags()
+
         finally:
             self.after(0, lambda: self.process_btn.config(state=tk.NORMAL))
+
+    def _get_unique_filename(self, filename):
+        """生成唯一文件名"""
+        base_name, ext = os.path.splitext(filename)
+        counter = 1
+        while True:
+            new_filename = f"{base_name}_{counter}{ext}"
+            new_dest_path = os.path.join(ARCHIVE_FOLDER, new_filename)
+            if not os.path.exists(new_dest_path):
+                return new_filename
+            counter += 1
 
     def update_progress(self, value, message):
         self.after(0, lambda: self.progress.config(value=value))
@@ -822,6 +970,58 @@ class App(tk.Tk):
 
     def log_error(self, message):
         self.after(0, lambda: messagebox.showerror("处理错误", message))
+
+    def check_data_integrity(self):
+        """检查数据完整性（弹出提示框版本）"""
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+
+            # 获取所有数据库记录
+            cursor.execute("SELECT image_name FROM image_metadata")
+            db_files = set(row[0] for row in cursor.fetchall())
+
+            # 获取实际文件
+            actual_files = set(os.listdir(ARCHIVE_FOLDER))
+
+            # 找出不一致的记录
+            db_only = db_files - actual_files
+            actual_only = actual_files - db_files
+
+            # 构建详细报告
+            report = f"数据完整性检查报告:\n\n"
+            report += f"数据库记录数: {len(db_files)}\n"
+            report += f"实际文件数: {len(actual_files)}\n\n"
+
+            if db_only:
+                report += f"⚠ 数据库中有但文件缺失: {len(db_only)} 个\n"
+                for file in list(db_only)[:5]:  # 只显示前5个
+                    report += f"  • {file}\n"
+                if len(db_only) > 5:
+                    report += f"  • ... 还有 {len(db_only) - 5} 个\n"
+                report += "\n"
+
+            if actual_only:
+                report += f"⚠ 文件存在但数据库无记录: {len(actual_only)} 个\n"
+                for file in list(actual_only)[:5]:
+                    report += f"  • {file}\n"
+                if len(actual_only) > 5:
+                    report += f"  • ... 还有 {len(actual_only) - 5} 个\n"
+                report += "\n"
+
+            if not db_only and not actual_only:
+                report += "✓ 数据完整性良好，所有记录都匹配！"
+
+            # 弹出详细报告
+            if db_only or actual_only:
+                messagebox.showwarning("数据完整性检查", report)
+            else:
+                messagebox.showinfo("数据完整性检查", report)
+
+            conn.close()
+
+        except Exception as e:
+            messagebox.showerror("检查失败", f"数据完整性检查失败: {str(e)}")
 
 
 if __name__ == '__main__':
