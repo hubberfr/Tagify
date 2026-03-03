@@ -7,16 +7,21 @@ import sqlite3
 import os
 import shutil
 import threading
-import tensorflow as tf
 import numpy as np
 from datetime import datetime
 import win32clipboard
+import torch
+import timm
+import pandas as pd
+import json
+from safetensors.torch import load_file
 
 # 配置参数
-MODEL_PATH = 'model-resnet_custom_v3.h5'
-TAGS_FILE = 'tags.txt'
+MODEL_PATH = 'model.safetensors'  # 新模型的权重文件
+CONFIG_PATH = 'config.json'  # 新模型的配置文件
+TAGS_CSV_PATH = 'selected_tags.csv'  # 新模型的标签文件
 INPUT_FOLDER = 'input_image'
-ARCHIVE_FOLDER = 'gallery'
+ARCHIVE_FOLDER = '../deepdanbooru-v3-20211112-sgd-e28 (1)/gallery'
 DB_FILE = 'image_tags.db'
 THUMB_SIZE = (150, 150)
 MAIN_COLOR = "#f5f5f5"
@@ -27,11 +32,80 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True  # 允许加载截断的图片
 
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# 加载模型和标签
-model = tf.keras.models.load_model(MODEL_PATH)
-with open(TAGS_FILE, 'r', encoding='utf-8') as f:
-    tags = [line.strip() for line in f.readlines()]
 
+# ==================== 新模型加载 ====================
+class WDTagger:
+    """WD ViT Tagger v3 模型封装类"""
+
+    def __init__(self, model_path=MODEL_PATH, config_path=CONFIG_PATH, csv_path=TAGS_CSV_PATH):
+        print("正在初始化新模型...")
+
+        # 1. 检查设备
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"使用设备: {self.device}")
+
+        # 2. 加载配置
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
+
+        # 3. 创建模型
+        self.model = timm.create_model(
+            self.config['architecture'],
+            pretrained=False,
+            num_classes=self.config['num_classes'],
+            **self.config['model_args']
+        )
+
+        # 4. 加载权重
+        state_dict = load_file(model_path)
+        self.model.load_state_dict(state_dict)
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+        # 5. 加载标签
+        self.df = pd.read_csv(csv_path)
+        self.tags = self.df['name'].tolist()
+
+        print(f"模型加载成功！标签数量: {len(self.tags)}")
+
+    def preprocess(self, image):
+        """预处理图片"""
+        # 调整大小
+        image = image.resize((448, 448), Image.BICUBIC)
+
+        # 转换为numpy并归一化
+        img_array = np.array(image).astype(np.float32) / 255.0
+
+        # 标准化
+        mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+        std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+        img_array = (img_array - mean) / std
+
+        # 转换为tensor并调整维度
+        img_tensor = torch.from_numpy(img_array).permute(2, 0, 1)
+        img_tensor = img_tensor.unsqueeze(0)
+
+        return img_tensor.to(self.device)
+
+    def predict(self, image, threshold=0.5):
+        """预测图片标签"""
+        input_tensor = self.preprocess(image)
+
+        with torch.no_grad():
+            outputs = self.model(input_tensor)
+            probs = torch.sigmoid(outputs).cpu().numpy()[0]
+
+        # 筛选置信度大于阈值的标签
+        tag_confidences = [(self.tags[i], float(prob))
+                           for i, prob in enumerate(probs) if prob > threshold]
+
+        return tag_confidences
+
+
+# 初始化模型（全局变量）
+print("正在加载模型...")
+tagger = WDTagger()
+print("模型加载完成！")
 
 class ThumbnailButton(tk.Frame):
     """自定义缩略图按钮"""
@@ -151,10 +225,11 @@ class Pagination(tk.Frame):
         return visible_pages
 
 
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Tagify v7.2")  # 更新版本号
+        self.title("Tagify v8.0")  # 升级版本号，表示模型更新
         self.geometry("1400x800")
         self.configure(bg=MAIN_COLOR)
 
@@ -165,14 +240,14 @@ class App(tk.Tk):
         self.current_tag = None
         self.selected_image = None
         self.thumbnail_cache = {}
-        self.view_mode = "tag"  # 新增：视图模式，"tag" 或 "gallery"
-        self.columns_per_row = 4  # 默认每行4个缩略图
+        self.view_mode = "tag"
+        self.columns_per_row = 4
 
         self.init_ui()
         self.init_database()
-        self.FAVORITE_TAG = "collect"  # 收藏标签
-        self.sort_by = "time"  # 默认按时间排序
-        self.sort_order = "DESC"  # 默认倒序
+        self.FAVORITE_TAG = "collect"
+        self.sort_by = "time"
+        self.sort_order = "DESC"
 
         # 样式配置
         self.style = ttk.Style()
@@ -181,6 +256,7 @@ class App(tk.Tk):
         self.style.configure("Treeview", background=DETAIL_COLOR, fieldbackground=DETAIL_COLOR, foreground="black")
         self.style.configure("Treeview.Heading", background=ACCENT_COLOR, foreground="black")
 
+    # ==================== 界面方法保持不变 ====================
     def init_ui(self):
         # 顶部工具栏
         toolbar = ttk.Frame(self)
@@ -311,6 +387,23 @@ class App(tk.Tk):
             'time': self.create_info_row(info_frame, "处理时间:", 2)
         }
 
+        # 添加显示详细标签的勾选框
+        control_frame = ttk.Frame(parent)
+        control_frame.pack(fill=tk.X, padx=10, pady=2)
+
+        self.show_details_var = tk.BooleanVar(value=False)  # 默认不显示详细标签
+        self.show_details_cb = ttk.Checkbutton(
+            control_frame,
+            text="显示更多标签 (5%-50%)",
+            variable=self.show_details_var,
+            command=self.toggle_details_display
+        )
+        self.show_details_cb.pack(side=tk.LEFT)
+
+        # 添加标签计数显示
+        self.tag_count_label = ttk.Label(control_frame, text="", foreground="gray")
+        self.tag_count_label.pack(side=tk.RIGHT, padx=5)
+
         # 下部标签列表
         tag_frame = ttk.LabelFrame(parent, text="标签详情", width=380)
         tag_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -321,11 +414,27 @@ class App(tk.Tk):
         self.tag_tree.column('tag', width=150, anchor='w')
         self.tag_tree.column('confidence', width=80, anchor='center')
 
+        # 设置标签样式
+        style = ttk.Style()
+        style.configure("Main.Treeview", rowheight=25)
+        style.configure("Detail.Treeview", rowheight=20)
+
+        # 添加滚动条
         scroll = ttk.Scrollbar(tag_frame, orient="vertical", command=self.tag_tree.yview)
         self.tag_tree.configure(yscrollcommand=scroll.set)
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.tag_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 绑定右键菜单
         self.tag_tree.bind("<Button-3>", self.on_tag_right_click)
+
+        # 存储当前图片的所有标签（包括详细标签）
+        self.current_all_tags = []
+
+    def toggle_details_display(self):
+        """切换详细标签显示"""
+        if self.selected_image:
+            self.show_image_info(self.selected_image)
 
     def toggle_sort(self, field):
         """切换排序方式和顺序"""
@@ -442,7 +551,7 @@ class App(tk.Tk):
             return
 
     def show_image_info(self, image_name):
-        """显示图片详细信息"""
+        """显示图片详细信息（支持分层显示）"""
         self.selected_image = image_name
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -462,14 +571,57 @@ class App(tk.Tk):
         self.info_labels['size'].config(text=f"{round(file_size / 1024)} KB")
         self.info_labels['time'].config(text=process_time[:19] if process_time != "未知" else "未知")
 
-        # 更新标签信息
-        self.tag_tree.delete(*self.tag_tree.get_children())
+        # 获取所有标签（不设阈值，获取全部）
         cursor.execute('''SELECT tag, confidence
                           FROM tags
                           WHERE image_name = ?
                           ORDER BY confidence DESC''', (image_name,))
-        for tag, conf in cursor.fetchall():
-            self.tag_tree.insert('', 'end', values=(tag, f"{conf * 100:.2f}%"))
+        all_tags = cursor.fetchall()
+
+        # 分类标签
+        main_tags = [(tag, conf) for tag, conf in all_tags if conf > 0.5]
+        detail_tags = [(tag, conf) for tag, conf in all_tags if 0.05 < conf <= 0.5]
+
+        # 保存所有标签供后续使用
+        self.current_all_tags = all_tags
+
+        # 更新标签计数
+        self.tag_count_label.config(
+            text=f"主要: {len(main_tags)} | 更多: {len(detail_tags)}"
+        )
+
+        # 更新标签信息（根据勾选状态决定显示哪些）
+        self.tag_tree.delete(*self.tag_tree.get_children())
+
+        # 显示主要标签（>50%）
+        for tag, conf in main_tags:
+            item = self.tag_tree.insert('', 'end',
+                                        values=(tag, f"{conf * 100:.2f}%"),
+                                        tags=('main',))
+
+        # 如果勾选了显示详细标签，则添加分隔线和详细标签
+        if self.show_details_var.get() and detail_tags:
+            # 添加一个分隔线（作为视觉分隔）
+            self.tag_tree.insert('', 'end',
+                                 values=("─" * 30, "─" * 8),
+                                 tags=('separator',))
+
+            # 显示详细标签（5%-50%）
+            for tag, conf in detail_tags:
+                self.tag_tree.insert('', 'end',
+                                     values=(f"  {tag}", f"{conf * 100:.2f}%"),
+                                     tags=('detail',))
+
+        # 配置标签样式
+        self.tag_tree.tag_configure('main',
+                                    foreground='black',
+                                    font=('微软雅黑', 9))
+        self.tag_tree.tag_configure('detail',
+                                    foreground='gray',
+                                    font=('微软雅黑', 8))
+        self.tag_tree.tag_configure('separator',
+                                    foreground='lightgray',
+                                    font=('微软雅黑', 7))
 
         conn.close()
 
@@ -862,6 +1014,7 @@ class App(tk.Tk):
         detail_win.mainloop()
 
     def start_processing(self):
+        """开始处理（添加模型预热）"""
         if not os.path.exists(INPUT_FOLDER):
             messagebox.showerror("错误", f"输入文件夹 {INPUT_FOLDER} 不存在")
             return
@@ -870,7 +1023,9 @@ class App(tk.Tk):
         self.progress['value'] = 0
         threading.Thread(target=self.process_images, daemon=True).start()
 
+    # ==================== 核心修改：process_images 方法 ====================
     def process_images(self):
+        """处理图片（使用新模型）"""
         try:
             valid_ext = ('.png', '.jpg', '.jpeg', '.webp')
             image_files = [f for f in os.listdir(INPUT_FOLDER) if f.lower().endswith(valid_ext)]
@@ -895,14 +1050,9 @@ class App(tk.Tk):
                     else:
                         final_filename = filename
 
+                    # 使用新模型预测
                     img = Image.open(src_path).convert('RGB')
-                    img = img.resize((512, 512))
-                    img_array = np.asarray(img).astype(np.float32) / 255.0
-                    input_data = np.expand_dims(img_array, axis=0)
-
-                    predictions = model.predict(input_data, verbose=0)[0]
-                    tag_confidences = [(tags[i], float(prob))
-                                       for i, prob in enumerate(predictions) if prob > 0.5]
+                    tag_confidences = tagger.predict(img, threshold=0.05)
 
                     conn = sqlite3.connect(DB_FILE)
                     cursor = conn.cursor()
@@ -954,7 +1104,7 @@ class App(tk.Tk):
             self.after(0, lambda: self.process_btn.config(state=tk.NORMAL))
 
     def _get_unique_filename(self, filename):
-        """生成唯一文件名"""
+        """生成唯一文件名（完全不变）"""
         base_name, ext = os.path.splitext(filename)
         counter = 1
         while True:
@@ -1022,6 +1172,7 @@ class App(tk.Tk):
 
         except Exception as e:
             messagebox.showerror("检查失败", f"数据完整性检查失败: {str(e)}")
+
 
 
 if __name__ == '__main__':
