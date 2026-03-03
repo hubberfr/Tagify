@@ -1,6 +1,6 @@
 # Tagify - 图片标签管理系统
 基于深度学习的图片标签管理系统，支持自动标注、多维度搜索和可视化浏览。现已升级为 **WD ViT Tagger v3** 模型，识别更精准、细节更丰富！
-![Uploading 21702008-ba4f-4ce4-a95c-1489e17143b8.png…]()
+<img width="1050" height="618" alt="9ae13891-6acc-48b8-b8b1-078bf161eb01" src="https://github.com/user-attachments/assets/be4c423d-e8b2-46cc-8014-1b832fc59d8c" />
 
 ---
 
@@ -18,7 +18,7 @@
 
 ## 运行准备
 ### 1.文件夹结构
-项目目录/
+项目目录/  
 ├── input_image/ # 存放待处理的图片  
 ├── gallery/ # 处理后的图片存档  
 ├── model.safetensors # 模型权重  
@@ -102,5 +102,6 @@ pywin32
 - 5-50%的标签同样准确，可在右侧勾选显示
 
 - 如有大量图片，建议分批处理
+
 
 
