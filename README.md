@@ -1,31 +1,69 @@
 # Tagify - 图片标签管理系统
-基于deepdanbooru批量给图片添加标签,通过标签分类并搜索图片的软件,拥有简单实用的图像化界面
+基于深度学习的图片标签管理系统，支持自动标注、多维度搜索和可视化浏览。现已升级为 **WD ViT Tagger v3** 模型，识别更精准、细节更丰富！
 <img width="2201" height="1248" alt="8d7233f0-a9d0-45dd-bed1-85ec515ce06e" src="https://github.com/user-attachments/assets/f274408a-0701-417f-8d4a-c28df507200d" />
 
+---
 
-## 运行提示
-- 运行前请在当前目录创建名为"input_image"的文件夹,以及创建名为"gallery"的文件夹
-- 运行前请前往https://github.com/KichangKim/DeepDanbooru/releases/tag/v3-20211112-sgd-e28
-- 下载对应model-resnet_custom_v3.h5模型以及标签放入当前目录下
-- 并配置MODEL_PATH = 'model-resnet_custom_v3.h5'
-- TAGS_FILE = 'tags.txt'
+##  模型升级亮点
 
-## 前置
-- Python 3.9
-- TensorFlow 2.x
-- SQLite
-- Tkinter GUI
-- pywin32 310
+| 特性 | 旧模型 (ResNet) | 新模型 (WD ViT v3) |
+|:---|:---:|:---:|
+| **置信度分布** | 虚高 (90-100%) | ✅ 真实梯度分布 (5-99%) |
+| **标签准确性** | 偶现错误标签 | ✅ 精准识别 |
+| **细节标签** | 较少 | ✅ 5-50%区间包含丰富细节 |
+| **角色识别** | 基础 | ✅ 精准识别东方Project角色 |
+| **场景理解** | 一般 | ✅ 优秀（可识别"拥抱"、"睡觉"等场景） |
+
+---
+
+## 运行准备
+### 1.文件夹结构
+项目目录/
+├── input_image/ # 存放待处理的图片  
+├── gallery/ # 处理后的图片存档  
+├── model.safetensors # 模型权重  
+├── config.json # 模型配置  
+├── selected_tags.csv # 标签文件  
+└── main.py # 主程序
+
+### 2. 模型文件下载
+前往 [HuggingFace模型库](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3) 下载以下文件：
+- `model.safetensors` - 模型权重
+- `config.json` - 模型配置文件
+- `selected_tags.csv` - 标签文件
+
+### 3. 配置文件修改
+在 main.py 中配置以下参数
+```
+MODEL_PATH = 'model.safetensors'  
+CONFIG_PATH = 'config.json'  
+TAGS_CSV_PATH = 'selected_tags.csv'  
+```
+## 环境要求
+- Python 3.9+
+- 深度学习框架: PyTorch (CUDA版本可选)
+- 数据库: SQLite3
+- GUI框架: Tkinter
+- 主要依赖：
+torch  
+timm  
+pandas  
+safetensors  
+Pillow  
+numpy  
+pywin32
 
 ## tagify使用指北
-- 1.图片处理
+1.图片处理
 - 将需要输入的图片放入input_image文件夹下
 - 点击批量处理图片按钮
 - 即可批量处理图片并剪切到gallery文件夹下,数据保存在image_tags.db文件中
-- 2.根据标签搜索
+
+2.根据标签搜索
 - 在左侧面板输入框输入需要查询的标签,点击搜索按钮
 - 下方会出现与之匹配的相关标签,括号中显示的是含有此标签的图片出现次数
-- 3.图片预览查看
+
+3.图片预览查看
 - 点击图库显示后会显示图库中的所有图片
 - 点击对应标签后,中间面板会出现含此标签的缩略图,一行4张,一页20张
 - 通过拉动左右两部分发边框可以自定义模块大小，中间显示面板会根据宽度自动调整一行显示多少张
@@ -36,12 +74,30 @@
 - 可以通过添加自定义标签实现自定义收藏
 - 下方有分页按钮
 - 上方有按名称,大小,存入时间排序按钮
+
+4.右侧图片详细信息与标签信息
+- 右侧上方有图片详细信息
+- 可勾选更多表情信息，会显示置信度在5%-50%的标签(这些标签通常也很准确！)
 - 右侧标签列表右键有复制标签功能
-- 4.最好在每次使用前点击数据库完整性验证按钮，如果出现问题可以向我反馈
+
+5.最好在每次使用前点击数据库完整性验证按钮，如果出现问题可以向我反馈
 ## 功能特性
 - 基于深度学习的自动图片标注
 - 自定义标签管理
 - 可视化图片浏览
 - 数据库持久化存储
 ---
-**注意！！！过去版本存在严重bug，如果曾经下载使用，请将main.py文件覆盖为现在版本**
+**注意！！！重要更新，过去版本存在bug**
+- 旧版ResNet模型置信度虚高（90-100%）
+- 偶现错误标签
+- 细节识别不足
+### 如果您之前下载使用过旧版本，请务必：
+删除旧的 model-resnet_custom_v3.h5  
+下载新模型文件  
+将 main.py 覆盖为最新版本
+### 注意事项
+- 首次运行会自动创建 image_tags.db 数据库
+- 建议定期点击 数据完整性检查 按钮
+- GPU用户可获得更快的处理速度
+- 5-50%的标签同样准确，可在右侧勾选显示
+- 如有大量图片，建议分批处理
