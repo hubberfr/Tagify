@@ -21,7 +21,7 @@ MODEL_PATH = 'model.safetensors'  # 新模型的权重文件
 CONFIG_PATH = 'config.json'  # 新模型的配置文件
 TAGS_CSV_PATH = 'selected_tags.csv'  # 新模型的标签文件
 INPUT_FOLDER = 'input_image'
-ARCHIVE_FOLDER = '../deepdanbooru-v3-20211112-sgd-e28 (1)/gallery'
+ARCHIVE_FOLDER = 'gallery'
 DB_FILE = 'image_tags.db'
 THUMB_SIZE = (150, 150)
 MAIN_COLOR = "#f5f5f5"
@@ -256,7 +256,7 @@ class App(tk.Tk):
         self.style.configure("Treeview", background=DETAIL_COLOR, fieldbackground=DETAIL_COLOR, foreground="black")
         self.style.configure("Treeview.Heading", background=ACCENT_COLOR, foreground="black")
 
-    # ==================== 界面方法保持不变 ====================
+
     def init_ui(self):
         # 顶部工具栏
         toolbar = ttk.Frame(self)
@@ -1177,4 +1177,5 @@ class App(tk.Tk):
 
 if __name__ == '__main__':
     app = App()
+
     app.mainloop()
