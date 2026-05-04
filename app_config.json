@@ -1,0 +1,57 @@
+{
+  "_comment": "Tagify v8.1 应用配置文件 — 修改后重新启动程序即可生效",
+
+  "paths": {
+    "model_path": "model.safetensors",
+    "config_path": "config.json",
+    "tags_csv": "selected_tags.csv",
+    "input_folder": "input_image",
+    "archive_folder": "../deepdanbooru-v3-20211112-sgd-e28 (1)/gallery",
+    "db_file": "image_tags.db"
+  },
+
+  "model": {
+    "image_size": [448, 448],
+    "default_threshold": 0.5,
+    "process_threshold": 0.05,
+    "main_tag_threshold": 0.5,
+    "detail_tag_min": 0.05,
+    "valid_extensions": [".png", ".jpg", ".jpeg", ".webp"],
+    "load_truncated_images": true
+  },
+
+  "ui": {
+    "window_size": [1400, 800],
+    "panel_widths": [300, 700, 400],
+    "thumbnail_size": [150, 150],
+    "thumbnail_cache_max": 500,
+    "page_size": 20,
+    "default_columns": 4,
+    "thumbnail_padding": 20,
+    "search_entry_width": 22,
+    "tag_button_width": 280,
+    "tag_tree_height": 15,
+    "tag_column_width": 150,
+    "confidence_column_width": 80,
+    "tree_row_height_main": 25,
+    "tree_row_height_detail": 20,
+    "detail_image_max_size": [800, 800],
+    "detail_window_ratio": 0.8,
+    "info_label_width": 8,
+    "pagination_frame_height": 40,
+    "info_frame_width": 380,
+    "colors": {
+      "main_bg": "#f5f5f5",
+      "accent": "#c8ccd0",
+      "detail_bg": "#fafafa"
+    }
+  },
+
+  "behavior": {
+    "favorite_tag": "collect",
+    "default_sort": "time",
+    "default_order": "DESC",
+    "shutdown_timeout": 3,
+    "pagination_side": 4
+  }
+}
