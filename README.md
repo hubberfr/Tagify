@@ -1,6 +1,8 @@
 # Tagify v8.1 — 图片标签管理系统
 
 基于深度学习的图片标签管理系统，支持自动标注、多维度搜索和可视化浏览。使用 **WD ViT Tagger v3** 模型，识别精准、细节丰富。
+<img width="2100" height="1236" alt="28ff20e9-6ff0-4012-9d72-1a94fd1a359e" src="https://github.com/user-attachments/assets/fba1b7af-d0a1-4219-91b7-01c101b4be43" />
+
 
 ---
 
