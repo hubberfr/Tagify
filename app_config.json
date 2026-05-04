@@ -6,7 +6,7 @@
     "config_path": "config.json",
     "tags_csv": "selected_tags.csv",
     "input_folder": "input_image",
-    "archive_folder": "../deepdanbooru-v3-20211112-sgd-e28 (1)/gallery",
+    "archive_folder": "gallery",
     "db_file": "image_tags.db"
   },
 
