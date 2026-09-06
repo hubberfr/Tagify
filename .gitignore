@@ -1,0 +1,33 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ── IDE / 编辑器 ──
+.idea/
+.vscode/
+*.swp
+
+# ── 本地工具 ──
+.claude/
+
+# ── 模型权重与标签数据（需从 HuggingFace 模型页下载，不入库）──
+# model.safetensors 约 378MB，超 GitHub 100MB 单文件限制
+model.safetensors
+selected_tags.csv
+
+# ── 运行时数据库 ──
+*.db
+*.db-wal
+*.db-shm
+
+# ── 图片数据（不入库）──
+gallery/
+input_image/
+
+# ── 操作系统 ──
+.DS_Store
+Thumbs.db

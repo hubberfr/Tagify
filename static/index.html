@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tagify v9.1</title>
+<link rel="stylesheet" href="/static/style.css?v=9.1.1">
+</head>
+<body>
+
+<div id="app">
+  <!-- 顶栏 -->
+  <header id="toolbar">
+    <div class="toolbar-left">
+      <button id="btn-process" class="btn btn-primary">开始批量处理</button>
+      <button id="btn-gallery" class="btn">显示图库</button>
+      <button id="btn-integrity" class="btn">数据完整性</button>
+    </div>
+    <div class="toolbar-center">
+      <div id="progress-bar" class="progress-bar">
+        <div class="progress-fill"></div>
+        <span class="progress-text"></span>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <span id="status-text" class="status"></span>
+      <button id="btn-settings" class="btn icon-btn" title="设置">⚙</button>
+    </div>
+  </header>
+
+  <!-- 主体三栏 -->
+  <main id="main-content">
+    <!-- 左栏：标签搜索 -->
+    <aside id="left-panel">
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="搜索标签..." autocomplete="off">
+        <div id="suggest-dropdown" class="suggest-dropdown hidden"></div>
+        <button id="btn-search" class="btn">搜索</button>
+      </div>
+      <div id="tag-list" class="tag-list">
+        <div class="tag-empty">输入关键词搜索标签</div>
+      </div>
+    </aside>
+
+    <!-- 中栏：图片网格 -->
+    <section id="center-panel">
+      <div class="sort-bar">
+        <button class="sort-btn" data-sort="name">名称排序</button>
+        <button class="sort-btn active" data-sort="time">时间排序 ▼</button>
+        <button class="sort-btn" data-sort="size">大小排序</button>
+      </div>
+      <div id="image-grid" class="image-grid">
+        <div class="grid-empty">选择标签或点击"显示图库"查看图片</div>
+      </div>
+      <div id="pagination" class="pagination"></div>
+    </section>
+
+    <!-- 右栏：图片详情 -->
+    <aside id="right-panel">
+      <div class="info-card">
+        <div class="info-row"><span class="info-label">名称:</span><span id="info-name">-</span></div>
+        <div class="info-row"><span class="info-label">大小:</span><span id="info-size">-</span></div>
+        <div class="info-row"><span class="info-label">时间:</span><span id="info-time">-</span></div>
+      </div>
+
+      <!-- 评级标签区块 -->
+      <div id="rating-section" class="tag-section hidden">
+        <div class="section-title">评级</div>
+        <div id="rating-tags" class="tag-badge-list"></div>
+      </div>
+
+      <!-- 角色标签区块 -->
+      <div id="character-section" class="tag-section hidden">
+        <div class="section-title">角色</div>
+        <div id="character-tags" class="tag-badge-list"></div>
+      </div>
+
+      <!-- 其他标签详情 -->
+      <div class="detail-toggle">
+        <label><input type="checkbox" id="show-details"> <span id="detail-toggle-text">显示更多标签 (5%-50%)</span></label>
+        <span id="tag-count" class="tag-count"></span>
+      </div>
+      <div id="tag-detail" class="tag-detail">
+        <div class="detail-empty">点击图片查看标签详情</div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 原图弹窗 -->
+  <div id="image-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <button class="modal-close">&times;</button>
+      <img id="modal-image" src="" alt="">
+      <div class="modal-actions">
+        <button id="modal-fav" class="btn">收藏</button>
+        <button id="modal-delete" class="btn btn-danger">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置面板（居中大窗口） -->
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-overlay"></div>
+    <div class="settings-body">
+      <div class="settings-header">
+        <h3>设置</h3>
+        <button class="settings-close btn" title="关闭">&times;</button>
+      </div>
+      <div class="settings-content">
+
+        <!-- 外观 -->
+        <div class="settings-section-title">外观</div>
+        <div class="setting-group">
+          <label class="setting-label">主题模式</label>
+          <div class="theme-switch-row">
+            <button class="theme-option active" data-theme="light">☀ 浅色</button>
+            <button class="theme-option" data-theme="dark">🌙 暗色</button>
+          </div>
+          <div class="setting-hint">主题仅保存在本浏览器，不影响服务器配置</div>
+        </div>
+
+        <!-- 通用 -->
+        <div class="settings-section-title">通用</div>
+        <div class="setting-group">
+          <label class="setting-label" for="set-fav-tag">收藏标签名</label>
+          <input type="text" id="set-fav-tag" class="setting-input" placeholder="collect" maxlength="64">
+          <div class="setting-hint">收藏图片时自动打上的标签名</div>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">屏蔽 R18</label>
+          <label class="setting-checkbox">
+            <input type="checkbox" id="set-sfw-only">
+            <span>仅展示评级为 general 的图片（适合向他人展示项目）</span>
+          </label>
+          <div class="setting-hint">开启后图库与标签浏览都只会显示安全评级图片</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label class="setting-label" for="set-sort">默认排序</label>
+            <select id="set-sort" class="setting-input">
+              <option value="time">时间</option>
+              <option value="name">名称</option>
+              <option value="size">大小</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="set-order">排序方向</label>
+            <select id="set-order" class="setting-input">
+              <option value="DESC">降序</option>
+              <option value="ASC">升序</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="set-page-size">每页图片数</label>
+            <input type="number" id="set-page-size" class="setting-input" min="1" max="200" step="1">
+          </div>
+        </div>
+
+        <!-- 标签与阈值 -->
+        <div class="settings-section-title">标签与阈值</div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label class="setting-label" for="set-process-threshold">处理阈值</label>
+            <input type="number" id="set-process-threshold" class="setting-input" min="0" max="1" step="0.01">
+            <div class="setting-hint">批量处理存入数据库的最低置信度，调大减少标签</div>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="set-main-threshold">主要标签阈值</label>
+            <input type="number" id="set-main-threshold" class="setting-input" min="0" max="1" step="0.01">
+            <div class="setting-hint">高于此置信度的标签归为「主要标签」</div>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label class="setting-label" for="set-detail-min">详细标签下限</label>
+            <input type="number" id="set-detail-min" class="setting-input" min="0" max="1" step="0.01">
+            <div class="setting-hint">勾选「显示更多标签」时的最低置信度</div>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="set-default-threshold">默认阈值</label>
+            <input type="number" id="set-default-threshold" class="setting-input" min="0" max="1" step="0.01">
+            <div class="setting-hint">模型 predict() 的默认置信度阈值</div>
+          </div>
+        </div>
+
+        <!-- 界面 -->
+        <div class="settings-section-title">界面</div>
+        <div class="setting-row">
+          <div class="setting-group">
+            <label class="setting-label" for="set-thumb-w">缩略图宽度</label>
+            <input type="number" id="set-thumb-w" class="setting-input" min="32" max="1024" step="1">
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="set-thumb-h">缩略图高度</label>
+            <input type="number" id="set-thumb-h" class="setting-input" min="32" max="1024" step="1">
+          </div>
+          <div class="setting-group">
+            <label class="setting-label">图库卡片</label>
+            <div class="setting-static">网格与缩略图同步使用上述尺寸</div>
+          </div>
+        </div>
+
+        <!-- 路径 -->
+        <div class="settings-section-title">路径</div>
+        <div class="setting-group">
+          <label class="setting-label" for="set-input-folder">输入文件夹</label>
+          <input type="text" id="set-input-folder" class="setting-input">
+          <div class="setting-hint">相对项目目录，存放待处理图片的文件夹</div>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label" for="set-archive-folder">归档文件夹</label>
+          <input type="text" id="set-archive-folder" class="setting-input">
+          <div class="setting-hint">相对项目目录，处理后图片的存放与展示位置（修改后图库随之变化）</div>
+        </div>
+
+      </div>
+      <div class="settings-footer">
+        <button id="btn-reset-settings" class="btn">恢复默认</button>
+        <span class="settings-footer-spacer"></span>
+        <span id="settings-save-status" class="settings-save-status"></span>
+        <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="/static/app.js?v=9.1.1"></script>
+</body>
+</html>

@@ -1,6 +1,5 @@
 {
-  "_comment": "Tagify v8.1 应用配置文件 — 修改后重新启动程序即可生效",
-
+  "_comment": "Tagify v9.1 应用配置文件 — 可在网页「设置」面板中修改，保存后即时生效",
   "paths": {
     "model_path": "model.safetensors",
     "config_path": "config.json",
@@ -9,23 +8,40 @@
     "archive_folder": "gallery",
     "db_file": "image_tags.db"
   },
-
   "model": {
-    "image_size": [448, 448],
+    "image_size": [
+      448,
+      448
+    ],
     "default_threshold": 0.5,
     "process_threshold": 0.05,
     "main_tag_threshold": 0.5,
     "detail_tag_min": 0.05,
-    "valid_extensions": [".png", ".jpg", ".jpeg", ".webp"],
-    "load_truncated_images": true
+    "valid_extensions": [
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".webp"
+    ],
+    "load_truncated_images": true,
+    "device": "auto"
   },
-
   "ui": {
-    "window_size": [1400, 800],
-    "panel_widths": [300, 700, 400],
-    "thumbnail_size": [150, 150],
+    "window_size": [
+      1400,
+      800
+    ],
+    "panel_widths": [
+      300,
+      700,
+      400
+    ],
+    "thumbnail_size": [
+      150,
+      150
+    ],
     "thumbnail_cache_max": 500,
-    "page_size": 20,
+    "page_size": 24,
     "default_columns": 4,
     "thumbnail_padding": 20,
     "search_entry_width": 22,
@@ -35,22 +51,44 @@
     "confidence_column_width": 80,
     "tree_row_height_main": 25,
     "tree_row_height_detail": 20,
-    "detail_image_max_size": [800, 800],
+    "detail_image_max_size": [
+      800,
+      800
+    ],
     "detail_window_ratio": 0.8,
     "info_label_width": 8,
     "pagination_frame_height": 40,
     "info_frame_width": 380,
     "colors": {
-      "main_bg": "#f5f5f5",
-      "accent": "#c8ccd0",
-      "detail_bg": "#fafafa"
+      "bg_main": "#fafbfc",
+      "bg_panel": "#ffffff",
+      "bg_card": "#ffffff",
+      "border_card": "#e8eaed",
+      "border_card_hover": "#4285f4",
+      "accent_primary": "#1a73e8",
+      "accent_hover": "#1557b0",
+      "text_primary": "#202124",
+      "text_secondary": "#5f6368",
+      "text_muted": "#9aa0a6",
+      "tag_button_bg": "#e8f0fe",
+      "tag_button_bg_hover": "#d2e3fc",
+      "rating_general": "#34a853",
+      "rating_sensitive": "#f9ab00",
+      "rating_questionable": "#e8710a",
+      "rating_explicit": "#ea4335",
+      "char_count_accent": "#9334e6",
+      "char_name_accent": "#188038",
+      "separator": "#dadce0",
+      "progress_bar": "#1a73e8",
+      "scrollbar_bg": "#f1f3f4",
+      "scrollbar_fg": "#c4c7c5"
     }
   },
-
   "behavior": {
     "favorite_tag": "collect",
     "default_sort": "time",
     "default_order": "DESC",
+    "sfw_only": true,
     "shutdown_timeout": 3,
     "pagination_side": 4
   }
