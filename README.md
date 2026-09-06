@@ -1,9 +1,10 @@
-# Tagify — 图片自动打标签与分类管理系统
+<img width="2560" height="1312" alt="25e4a8c7a5d4654260d1d4baf74384e6" src="https://github.com/user-attachments/assets/3157fc34-f60a-43b2-96e1-6a696196363a" /># Tagify — 图片自动打标签与分类管理系统
 
 > 前后端分离的图片标签管理 Web 应用：基于 **WD ViT Tagger v3** 深度学习模型自动为图片打上 Danbooru 标签，并提供多维度搜索、按评级/角色分类浏览、收藏管理与数据完整性检查。
 
-![界面预览](docs/screenshot.png)
-*（请将你自己的截图放到 `docs/screenshot.png` 替换占位图）*
+![界面预览](![Uploading 25e4a8c7a5d4654260d1d4baf74384e6.png…]
+)
+
 
 ---
 
@@ -168,6 +169,4 @@ python main.py
 - 模型：[WD ViT Tagger v3](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3)（作者 SmilingWolf）。模型文件与标签数据的**许可证以模型页声明为准**，二次分发时请自行确认合规性
 - 本项目代码仅供学习交流使用
 
-## 📄 License
 
-> 仓库作者请在此处补充本项目代码的开源许可证（如 MIT / Apache-2.0），并确认模型文件的再分发是否符合其原始许可。
