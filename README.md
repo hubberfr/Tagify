@@ -167,4 +167,12 @@ python main.py
 - 模型：[WD ViT Tagger v3](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3)（作者 SmilingWolf）。模型文件与标签数据的**许可证以模型页声明为准**，二次分发时请自行确认合规性
 - 本项目代码仅供学习交流使用
 
+## 📄 License
+
+本项目**代码**采用 [MIT License](LICENSE) 开源，可自由使用、修改与分发，仅需保留版权声明。
+
+> 注意：模型权重（`model.safetensors`）、标签文件（`selected_tags.csv`）与架构配置（`config.json`）来自
+> [SmilingWolf/wd-vit-tagger-v3](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3)，
+> **不属于本项目 MIT 授权范围**，其使用与再分发请遵循模型页声明的许可证。
+
 
