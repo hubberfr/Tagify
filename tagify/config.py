@@ -25,6 +25,7 @@ _DEFAULTS = {
         "tags_csv": "selected_tags.csv",
         "input_folder": "input_image",
         "archive_folder": "gallery",
+        "tag_output_folder": "tagoutput",
         "db_file": "image_tags.db"
     },
     "model": {
@@ -154,6 +155,9 @@ DB_FILE = _p["db_file"]
 # 归档目录始终基于脚本位置解析为绝对路径，运行目录无关
 ARCHIVE_FOLDER = os.path.normpath(os.path.join(_PROJECT_DIR, _p["archive_folder"]))
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
+# 标签导出目录（双击图片 → 导出标签）
+TAG_OUTPUT_FOLDER = os.path.normpath(os.path.join(_PROJECT_DIR, _p["tag_output_folder"]))
+os.makedirs(TAG_OUTPUT_FOLDER, exist_ok=True)
 
 # ── 模型 ──
 IMAGE_SIZE = tuple(_m["image_size"])

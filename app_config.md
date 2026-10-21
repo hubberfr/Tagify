@@ -16,6 +16,7 @@
 | `tags_csv` | `"selected_tags.csv"` | Danbooru 标签列表（10861 个标签） | ✕ |
 | `input_folder` | `"input_image"` | 待处理图片的存放目录（相对项目目录） | ✓ |
 | `archive_folder` | `"gallery"` | 处理后图片归档目录（相对项目目录，保存后图库位置随之变化） | ✓ |
+| `tag_output_folder` | `"tagoutput"` | 标签导出目录（双击图片「导出标签」生成 `<图像名>_tags.txt`，相对项目目录，自动创建） | ✕ |
 | `db_file` | `"image_tags.db"` | SQLite 数据库文件 | ✕ |
 
 > 路径统一相对项目根目录解析，从任意目录启动程序行为一致。

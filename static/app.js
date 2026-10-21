@@ -43,6 +43,7 @@ const dom = {
   modal: $('#image-modal'),
   modalImage: $('#modal-image'),
   modalFav: $('#modal-fav'),
+  modalExport: $('#modal-export'),
   modalDelete: $('#modal-delete'),
   settingsPanel: $('#settings-panel'),
   settingsSaveStatus: $('#settings-save-status'),
@@ -117,6 +118,7 @@ function bindEvents() {
   $('.modal-close').addEventListener('click', closeModal);
   $('.modal-overlay').addEventListener('click', closeModal);
   dom.modalFav.addEventListener('click', toggleFavorite);
+  dom.modalExport.addEventListener('click', exportTags);
   dom.modalDelete.addEventListener('click', deleteImage);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !dom.modal.classList.contains('hidden')) closeModal();
@@ -591,6 +593,17 @@ async function toggleFavorite() {
     dom.modalFav.textContent = data.favorite ? '取消收藏' : '收藏';
     showImageDetail(name);
   } catch (e) { showToast('操作失败'); }
+}
+
+async function exportTags() {
+  const name = dom.modal.dataset.imageName;
+  if (!name) return;
+  try {
+    const res = await fetch(`/api/images/${encodeURIComponent(name)}/export-tags`);
+    const data = await res.json();
+    if (!res.ok) { showToast(data.detail || '导出失败'); return; }
+    showToast(`已导出 ${data.count} 个标签 → tagoutput/${data.file}`);
+  } catch (e) { showToast('导出失败'); }
 }
 
 async function deleteImage() {

@@ -223,6 +223,55 @@ def _register_routes(app: FastAPI):
         }
 
     # ════════════════════════════════════════════════════
+    #  标签导出（写入 tagoutput/<图像名>_tags.txt）
+    # ════════════════════════════════════════════════════
+
+    @app.get("/api/images/{name}/export-tags")
+    async def api_export_tags(name: str):
+        meta = get_image_metadata(name)
+        if not meta:
+            raise HTTPException(404, "图片不存在")
+
+        all_tags = get_image_tags(name)
+        if not all_tags:
+            raise HTTPException(404, "该图片暂无标签数据")
+
+        # 按 评级 > 角色 > 一般 排序（各组内置信度降序），与详情面板一致
+        all_tags.sort(key=lambda x: tag_sort_key(x[0], x[1]))
+
+        rating_lines, char_lines, other_lines = [], [], []
+        for tag_name, conf in all_tags:
+            cat = get_category(tag_name)
+            line = f"{get_display_name(tag_name)} ({conf * 100:.2f}%)"
+            if cat == CAT_RATING:
+                rating_lines.append(line)
+            elif cat == CAT_CHARACTER:
+                char_lines.append(line)
+            else:
+                other_lines.append(line)
+
+        sections = []
+        if rating_lines:
+            sections.append("评级\n" + "\n".join(rating_lines))
+        if char_lines:
+            sections.append("角色\n" + "\n".join(char_lines))
+        if other_lines:
+            sections.append("一般\n" + "\n".join(other_lines))
+        content = "\n\n".join(sections) + "\n"
+
+        os.makedirs(cfg.TAG_OUTPUT_FOLDER, exist_ok=True)
+        txt_name = f"{name}_tags.txt"
+        txt_path = os.path.join(cfg.TAG_OUTPUT_FOLDER, txt_name)
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return {
+            "file": txt_name,
+            "path": txt_path,
+            "count": len(all_tags),
+        }
+
+    # ════════════════════════════════════════════════════
     #  图片文件服务
     # ════════════════════════════════════════════════════
 

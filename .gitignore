@@ -24,9 +24,10 @@ selected_tags.csv
 *.db-wal
 *.db-shm
 
-# ── 图片数据（不入库）──
+# ── 图片数据与导出产物（不入库）──
 gallery/
 input_image/
+tagoutput/
 
 # ── 操作系统 ──
 .DS_Store

@@ -6,6 +6,7 @@
     "tags_csv": "selected_tags.csv",
     "input_folder": "input_image",
     "archive_folder": "gallery",
+    "tag_output_folder": "tagoutput",
     "db_file": "image_tags.db"
   },
   "model": {
@@ -88,7 +89,7 @@
     "favorite_tag": "collect",
     "default_sort": "time",
     "default_order": "DESC",
-    "sfw_only": true,
+    "sfw_only": false,
     "shutdown_timeout": 3,
     "pagination_side": 4
   }
