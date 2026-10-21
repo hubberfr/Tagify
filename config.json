@@ -1,0 +1,39 @@
+{
+  "architecture": "vit_base_patch16_224",
+  "num_classes": 10861,
+  "num_features": 768,
+  "global_pool": "avg",
+  "model_args": {
+    "img_size": 448,
+    "class_token": false,
+    "global_pool": "avg",
+    "fc_norm": false,
+    "act_layer": "gelu_tanh"
+  },
+  "pretrained_cfg": {
+    "custom_load": false,
+    "input_size": [
+      3,
+      448,
+      448
+    ],
+    "fixed_input_size": false,
+    "interpolation": "bicubic",
+    "crop_pct": 1.0,
+    "crop_mode": "center",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "num_classes": 10861,
+    "pool_size": null,
+    "first_conv": null,
+    "classifier": null
+  }
+}

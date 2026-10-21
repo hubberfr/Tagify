@@ -1,0 +1,13 @@
+# Web 服务
+fastapi
+uvicorn
+
+# 深度学习推理
+torch
+timm
+safetensors
+
+# 数据处理
+pandas
+numpy
+Pillow
